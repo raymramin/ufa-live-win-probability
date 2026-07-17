@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>UFA Live Win Probability</title>
+  <meta name="description" content="Smooth, interactive UFA win-probability chart — scrub throws, quarters, and live win %."/>
+  <meta property="og:title" content="UFA Live Win Probability"/>
+  <meta property="og:description" content="Interactive Gamecast-style win probability for 2023-05-13 SLC @ OAK."/>
+  <meta property="og:type" content="website"/>
+  <style>
+    :root { --ink:#142033; --muted:#5b6b7c; --accent:#1f4b99; --bg:#f7f9fc; --card:#fff; --line:#d7dee7; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+    .wrap { max-width: 720px; margin: 48px auto; padding: 0 20px 64px; }
+    h1 { font-family: Georgia, serif; font-size: 2rem; margin: 0 0 10px; }
+    p { color: var(--muted); line-height: 1.5; }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+      padding: 22px; margin-top: 24px; box-shadow: 0 10px 28px rgba(20,32,51,.06);
+    }
+    a.btn {
+      display: inline-block; margin-top: 12px; background: var(--accent); color: #fff;
+      text-decoration: none; font-weight: 700; padding: 12px 18px; border-radius: 10px;
+    }
+    a.btn:hover { filter: brightness(1.08); }
+    .meta { font-size: 0.9rem; margin-top: 18px; }
+    .meta a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>UFA Live Win Probability</h1>
+    <p>
+      Smooth, live-friendly win-probability model with Gamecast-style scrubbing:
+      quarter markers, throw descriptions, score, and win % as you drag.
+    </p>
+    <div class="card">
+      <strong>Demo game</strong>
+      <p style="margin: 8px 0 0;">2023-05-13 · SLC @ OAK (Spiders home) · ends 0% for home after OT</p>
+      <a class="btn" href="figures/2023_05_13_SLC_OAK_home_live.html">Open interactive chart</a>
+    </div>
+    <p class="meta">
+      Source: <a href="https://github.com/raymramin/ufa-live-win-probability">github.com/raymramin/ufa-live-win-probability</a>
+    </p>
+  </div>
+</body>
+</html>

@@ -131,6 +131,15 @@ python scripts/plot_game.py --game-id 2023-05-13-SLC-OAK --team home
 
 Outputs land in `figures/` and `models/`.
 
+## Share the interactive chart
+
+Public GitHub Pages:
+
+- Landing: https://raymramin.github.io/ufa-live-win-probability/
+- Demo (SLC @ OAK): https://raymramin.github.io/ufa-live-win-probability/figures/2023_05_13_SLC_OAK_home_live.html
+
+That HTML is fully self-contained (data embedded) — no database required for viewers.
+
 ### Interactive Gamecast-style chart
 
 ```bash
