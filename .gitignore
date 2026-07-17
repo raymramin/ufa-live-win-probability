@@ -1,0 +1,16 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+data/*.parquet
+data/*.csv
+!data/.gitkeep
+models/*.joblib
+!models/.gitkeep
+figures/*
+!figures/.gitkeep
+!figures/demo_synthetic_home.svg
+!figures/2023_05_13_SLC_OAK_home_live.svg
+.DS_Store
