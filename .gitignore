@@ -13,4 +13,5 @@ figures/*
 !figures/.gitkeep
 !figures/demo_synthetic_home.svg
 !figures/2023_05_13_SLC_OAK_home_live.svg
+!figures/2023_05_13_SLC_OAK_home_live.html
 .DS_Store

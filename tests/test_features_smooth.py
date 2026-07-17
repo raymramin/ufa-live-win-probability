@@ -24,6 +24,16 @@ def test_smoother_is_less_volatile_than_raw():
     assert float(np.mean(np.abs(np.diff(live)))) < float(np.mean(np.abs(np.diff(raw))))
 
 
+def test_period_boundaries_include_ot():
+    from live_win_prob.plot import _period_boundaries
+
+    marks = dict(_period_boundaries(3200))
+    assert marks[0.0] == "Q1"
+    assert marks[720.0] == "Q2"
+    assert marks[2880.0] == "OT"
+    assert 2880.0 not in dict(_period_boundaries(2000))
+
+
 def test_feature_builder_columns():
     throws = pd.DataFrame(
         {

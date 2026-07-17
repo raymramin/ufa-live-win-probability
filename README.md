@@ -131,13 +131,16 @@ python scripts/plot_game.py --game-id 2023-05-13-SLC-OAK --team home
 
 Outputs land in `figures/` and `models/`.
 
-### Real-data one-shot (uses ShownSpace DB)
+### Interactive Gamecast-style chart
 
 ```bash
-python scripts/train_and_plot_real.py --game-id 2023-05-13-SLC-OAK --team home
+python scripts/plot_interactive.py --game-id 2023-05-13-SLC-OAK --team home --open
 ```
 
-On SLC-OAK this produced a live path with mean |Δp| ≈ **0.0035** (raw model ≈ 0.029), starting at elapsed **0s**, ending at **~3177s** with **0%** home win (home lost in OT) — see `figures/2023_05_13_SLC_OAK_home_live.svg`.
+Opens `figures/..._live.html` with:
+- dashed **Q1 / Q2 / Q3 / Q4 / OT** vertical markers
+- scrubber (move/drag) showing **clock, play text, score, and win %**
+- area fill to 50%, team labels at 100%/0%
 
 ---
 

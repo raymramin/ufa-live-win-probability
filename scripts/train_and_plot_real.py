@@ -15,7 +15,7 @@ import pandas as pd
 from live_win_prob.db import read_table
 from live_win_prob.features import build_feature_frame, build_player_skill_priors
 from live_win_prob.model import train_smooth_win_model
-from live_win_prob.plot import write_win_prob_svg
+from live_win_prob.plot import write_win_prob_html, write_win_prob_svg
 from live_win_prob.smooth import LiveWinSmoother, score_game_live
 
 
@@ -62,15 +62,24 @@ def main() -> None:
         smoother=LiveWinSmoother(half_life_seconds=25.0),
     )
     out = ROOT / "figures" / f"{args.game_id.replace('-', '_')}_{args.team}_live.svg"
+    html = ROOT / "figures" / f"{args.game_id.replace('-', '_')}_{args.team}_live.html"
     write_win_prob_svg(
         scored,
         out,
         title=f"{args.game_id} — live smooth {args.team} win %",
         team_label=args.team.title(),
+        team=args.team,
+    )
+    write_win_prob_html(
+        scored,
+        html,
+        title=f"{args.game_id} — smooth live win probability",
+        team=args.team,
     )
     raw_vol = float(scored["win_prob_raw"].diff().abs().mean())
     live_vol = float(scored["win_prob"].diff().abs().mean())
     print(f"Wrote {out}")
+    print(f"Wrote {html}")
     print(f"raw mean|step|={raw_vol:.4f}  live mean|step|={live_vol:.4f}  final={scored['win_prob'].iloc[-1]:.3f}")
     print(f"elapsed 0 -> {scored['elapsed_seconds'].max():.0f}s")
 
