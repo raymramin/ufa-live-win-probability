@@ -222,14 +222,20 @@ def write_win_prob_svg(
   <text x="{margin['l'] - 10}" y="{margin['t'] + 4}" fill="#9aa7b8" font-size="10" text-anchor="end">100%</text>
   <text x="{margin['l'] - 10}" y="{mid_y + 4:.1f}" fill="#9aa7b8" font-size="10" text-anchor="end">50%</text>
   <text x="{margin['l'] - 10}" y="{margin['t'] + plot_h}" fill="#9aa7b8" font-size="10" text-anchor="end">0%</text>
-  <text x="{margin['l'] + plot_w + 6}" y="{margin['t'] + 12}" fill="#c5d0dc" font-size="11">{top_label}</text>
-  <text x="{margin['l'] + plot_w + 6}" y="{margin['t'] + plot_h}" fill="#c5d0dc" font-size="11">{bot_label}</text>
   <polygon fill="url(#fillAbove)" points="{area_pts}"/>
   <polyline fill="none" stroke="#5ec8ff" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" points="{points}"/>
   <text x="{margin['l']}" y="{height - 14}" fill="#9aa7b8" font-size="11">0s</text>
   <text x="{margin['l'] + plot_w}" y="{height - 14}" fill="#9aa7b8" font-size="11" text-anchor="end">{t_max:.0f}s</text>
 </svg>
 """
+    # Clarify home/away in the subtitle of the static SVG too.
+    role = "Home" if team == "home" else "Away"
+    focus = home_code if team == "home" else away_code
+    svg = svg.replace(
+        f"{team_label} win % · final {final_pct}",
+        f"Away {away_code} · Home {home_code} · graph = {role} ({focus}) win % · final {final_pct}",
+        1,
+    )
     output_path.write_text(svg, encoding="utf-8")
     return output_path
 
@@ -299,6 +305,9 @@ def write_win_prob_html(
 def _interactive_html(payload: dict[str, Any], away_code: str, home_code: str) -> str:
     data_json = json.dumps(payload, ensure_ascii=True)
     title = payload.get("title", "Win probability")
+    team = payload.get("team", "home")
+    focus = payload.get("focusTeam", home_code if team == "home" else away_code)
+    focus_role = "Home" if team == "home" else "Away"
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -313,8 +322,19 @@ def _interactive_html(payload: dict[str, Any], away_code: str, home_code: str) -
     * {{ box-sizing: border-box; }}
     body {{ margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--ink); }}
     .wrap {{ max-width: 980px; margin: 24px auto; padding: 0 16px 40px; }}
-    h1 {{ font-family: Georgia, serif; font-size: 1.45rem; margin: 0 0 6px; }}
-    .sub {{ color: var(--muted); font-size: 0.92rem; margin-bottom: 16px; }}
+    h1 {{ font-family: Georgia, serif; font-size: 1.45rem; margin: 0 0 10px; }}
+    .matchup {{
+      display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: baseline;
+      margin: 0 0 16px; font-size: 0.95rem; color: var(--ink);
+    }}
+    .matchup .pill {{
+      background: #eef3fa; border: 1px solid var(--line); border-radius: 999px;
+      padding: 4px 12px; font-weight: 600;
+    }}
+    .matchup .pill span {{ color: var(--muted); font-weight: 500; margin-right: 6px; }}
+    .matchup .focus {{
+      color: var(--accent); font-weight: 700;
+    }}
     .card {{ background: var(--card); border: 1px solid var(--line); border-radius: 12px;
              padding: 16px 16px 8px; box-shadow: 0 8px 24px rgba(20,32,51,.06); }}
     .chart-wrap {{ position: relative; width: 100%; user-select: none; cursor: crosshair; touch-action: none; }}
@@ -326,21 +346,18 @@ def _interactive_html(payload: dict[str, Any], away_code: str, home_code: str) -
     .clock {{ color: var(--muted); font-size: 0.85rem; margin-top: 6px; }}
     .wp-big {{ font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em; color: var(--accent);
                line-height: 1; text-align: right; }}
-    .wp-label {{ text-align: right; color: var(--muted); font-size: 0.8rem; margin-top: 4px; }}
-    .hint {{ margin-top: 10px; color: var(--muted); font-size: 0.82rem; }}
-    .legend {{ display: flex; justify-content: space-between; color: var(--muted); font-size: 0.8rem; margin: 2px 8px 0; }}
+    .wp-label {{ text-align: right; color: var(--muted); font-size: 0.8rem; margin-top: 4px; max-width: 180px; margin-left: auto; }}
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1 id="title"></h1>
-    <div class="sub">Smooth live model · move or drag across the chart to scrub each throw</div>
+    <div class="matchup">
+      <div class="pill"><span>Away</span>{away_code}</div>
+      <div class="pill"><span>Home</span>{home_code}</div>
+      <div class="focus">Graph = {focus_role} ({focus}) win probability</div>
+    </div>
     <div class="card">
-      <div class="legend">
-        <span id="topTeam"></span>
-        <span>dashed = 50% and quarter starts</span>
-        <span id="botTeam"></span>
-      </div>
       <div class="chart-wrap" id="chartWrap">
         <canvas id="chart" width="900" height="420"></canvas>
       </div>
@@ -352,11 +369,10 @@ def _interactive_html(payload: dict[str, Any], away_code: str, home_code: str) -
         </div>
         <div>
           <div class="wp-big" id="wpBig">—</div>
-          <div class="wp-label" id="wpLabel">win probability</div>
+          <div class="wp-label" id="wpLabel">{focus_role} ({focus}) win probability</div>
         </div>
       </div>
     </div>
-    <p class="hint">Vertical dashed lines mark Q1 / Q2 / Q3 / Q4 / OT. Horizontal dashed line is 50%.</p>
   </div>
 <script>
 const DATA = {data_json};
@@ -366,9 +382,6 @@ const canvas = document.getElementById('chart');
 const ctx = canvas.getContext('2d');
 const wrap = document.getElementById('chartWrap');
 document.getElementById('title').textContent = DATA.title;
-document.getElementById('topTeam').textContent = DATA.focusTeam + ' @ 100%';
-document.getElementById('botTeam').textContent = DATA.otherTeam + ' @ 0%';
-document.getElementById('wpLabel').textContent = DATA.focusTeam + ' win probability';
 
 const M = {{ l: 56, r: 28, t: 28, b: 42 }};
 let scrubIndex = Math.floor(DATA.points.length * 0.55);
@@ -405,7 +418,7 @@ function nearestIndex(clientX) {{
 function updateHud() {{
   const cur = DATA.points[scrubIndex];
   document.getElementById('score').textContent =
-    AWAY + ' ' + (cur.away_score ?? '—') + '  –  ' + HOME + ' ' + (cur.home_score ?? '—');
+    'Away ' + AWAY + ' ' + (cur.away_score ?? '—') + '  –  Home ' + HOME + ' ' + (cur.home_score ?? '—');
   document.getElementById('play').textContent = cur.play || '—';
   document.getElementById('clock').textContent = cur.clock || '';
   document.getElementById('wpBig').textContent = (cur.wp * 100).toFixed(1) + '%';
@@ -449,8 +462,6 @@ function draw() {{
   ctx.fillText('50%', M.l - 8, mid + 4);
   ctx.fillText('0%', M.l - 8, M.t + plotH);
   ctx.textAlign = 'left';
-  ctx.fillText(DATA.focusTeam, M.l + plotW - 36, M.t + 12);
-  ctx.fillText(DATA.otherTeam, M.l + plotW - 36, M.t + plotH);
 
   const pts = DATA.points;
   ctx.beginPath();
