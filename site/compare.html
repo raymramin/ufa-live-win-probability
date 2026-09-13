@@ -6,10 +6,10 @@
   <title>Deployed vs Proposal — UFA Win Probability</title>
   <style>
     :root { --ink:#142033; --muted:#5b6b7c; --line:#d7dee7; --accent:#1f4b99;
-             --old:#c45c26; --new:#1f4b99; --bg:#f7f9fc; --card:#fff; --field:#2f6b3a; }
+             --old:#c45c26; --new:#1f4b99; --bg:#f7f9fc; --card:#fff; --disc:#3d4f63; }
     * { box-sizing: border-box; }
     body { margin:0; font-family:"Segoe UI",system-ui,sans-serif; background:var(--bg); color:var(--ink); }
-    .wrap { max-width: 1100px; margin: 20px auto; padding: 0 16px 40px; }
+    .wrap { max-width: 1180px; margin: 20px auto; padding: 0 16px 40px; }
     h1 { font-family: Georgia, serif; font-size: 1.5rem; margin: 0 0 8px; }
     .nav { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin: 12px 0 18px; }
     button {
@@ -21,21 +21,27 @@
     .pills { display:flex; flex-wrap:wrap; gap:8px; margin: 8px 0 14px; }
     .pill { background:#eef3fa; border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-weight:600; }
     .pill span { color:var(--muted); font-weight:500; margin-right:6px; }
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-    @media (max-width: 860px) { .grid { grid-template-columns:1fr; } }
+    .grid { display:grid; grid-template-columns:minmax(0,1fr) 168px minmax(0,1fr); gap:14px; align-items:stretch; }
+    @media (max-width: 920px) {
+      .grid { grid-template-columns:1fr; }
+      .field-card { order: -1; }
+    }
     .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px;
              box-shadow:0 8px 24px rgba(20,32,51,.05); }
     .card h2 { font-size:1rem; margin:0 0 4px; }
     .vol { color:var(--muted); font-size:.8rem; margin-bottom:8px; }
     .chart-box { width:100%; height:300px; }
+    .field-box { width:100%; height:300px; }
     canvas { width:100%; height:300px; display:block; cursor:crosshair; touch-action:none; }
     .hud { display:grid; grid-template-columns:1fr auto; gap:8px; border-top:1px solid var(--line);
-            margin-top:8px; padding-top:10px; min-height:88px; }
+            margin-top:8px; padding-top:10px; min-height:72px; }
+    .field-hud { border-top:1px solid var(--line); margin-top:8px; padding-top:10px; min-height:72px;
+                  font-size:.85rem; color:var(--muted); }
+    .field-hud strong { color:var(--ink); }
     .score { font-weight:700; margin:0 0 4px; }
     .play { color:var(--muted); font-size:.9rem; margin:0; min-height:2.4em; }
     .wp { font-size:1.8rem; font-weight:800; text-align:right; line-height:1; }
     .wp-label { color:var(--muted); font-size:.75rem; text-align:right; }
-    .disc { color:var(--field); font-size:.8rem; text-align:right; margin-top:4px; font-weight:600; }
     .legend { display:flex; flex-wrap:wrap; gap:16px; color:var(--muted); font-size:.85rem; margin-top:10px; }
     .swatch { display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:6px; vertical-align:middle; }
   </style>
@@ -68,8 +74,15 @@
           <div>
             <div class="wp" id="oldWp" style="color:var(--old)">—</div>
             <div class="wp-label" id="oldWpLabel">win %</div>
-            <div class="disc" id="oldDisc">Disc Y —</div>
           </div>
+        </div>
+      </div>
+      <div class="card field-card">
+        <h2>Disc on field</h2>
+        <div class="vol">Number line · start → catch</div>
+        <div class="field-box"><canvas id="fieldCanvas" width="168" height="300"></canvas></div>
+        <div class="field-hud" id="fieldHud">
+          Move across either win chart to scrub.
         </div>
       </div>
       <div class="card">
@@ -84,15 +97,14 @@
           <div>
             <div class="wp" id="newWp" style="color:var(--new)">—</div>
             <div class="wp-label" id="newWpLabel">win %</div>
-            <div class="disc" id="newDisc">Disc Y —</div>
           </div>
         </div>
       </div>
     </div>
     <div class="legend">
-      <span><i class="swatch" style="background:var(--old)"></i>Deployed</span>
-      <span><i class="swatch" style="background:var(--new)"></i>Proposal</span>
-      <span><i class="swatch" style="background:var(--field)"></i>Right ruler = disc Y after each pass (0 back → 100 goal → 120 EZ)</span>
+      <span><i class="swatch" style="background:var(--old)"></i>Deployed win %</span>
+      <span><i class="swatch" style="background:var(--new)"></i>Proposal win %</span>
+      <span><i class="swatch" style="background:var(--disc)"></i>Middle = field number line (thrower → receiver)</span>
     </div>
   </div>
 <script>
@@ -143,10 +155,17 @@ function render(forceLayout) {
     scrub.neu = Math.floor(g.proposal.points.length * 0.55);
     delete layouts.oldCanvas;
     delete layouts.newCanvas;
+    delete layouts.fieldCanvas;
   }
   drawPanel('oldCanvas', g, g.deployed, '#c45c26', 'old', !!forceLayout);
   drawPanel('newCanvas', g, g.proposal, '#1f4b99', 'neu', !!forceLayout);
+  drawField(g, !!forceLayout);
   updateHud(g);
+}
+
+function currentFieldPoint(g) {
+  // Prefer proposal series (same throws); fall back to deployed.
+  return g.proposal.points[scrub.neu] || g.deployed.points[scrub.old];
 }
 
 function updateHud(g) {
@@ -158,8 +177,14 @@ function updateHud(g) {
   document.getElementById('newPlay').textContent = (n.clock ? n.clock + ' · ' : '') + n.play;
   document.getElementById('oldWp').textContent = (o.wp * 100).toFixed(1) + '%';
   document.getElementById('newWp').textContent = (n.wp * 100).toFixed(1) + '%';
-  document.getElementById('oldDisc').textContent = o.disc_y == null ? 'Disc Y —' : ('Disc Y ' + o.disc_y);
-  document.getElementById('newDisc').textContent = n.disc_y == null ? 'Disc Y —' : ('Disc Y ' + n.disc_y);
+  const p = currentFieldPoint(g);
+  const start = p.start_y == null ? '—' : p.start_y;
+  const end = p.end_y == null ? '—' : p.end_y;
+  const dist = p.throw_dist == null ? '—' : p.throw_dist;
+  document.getElementById('fieldHud').innerHTML =
+    '<div><strong>Start</strong> Y ' + start + '</div>' +
+    '<div><strong>Catch</strong> Y ' + end + '</div>' +
+    '<div><strong>Throw</strong> ' + dist + ' yd</div>';
 }
 
 function nearest(points, t) {
@@ -172,11 +197,11 @@ function nearest(points, t) {
   return lo;
 }
 
-function ensureLayout(canvasId, force) {
+function ensureLayout(canvasId, force, margins) {
   if (layouts[canvasId] && !force) return layouts[canvasId];
   const canvas = document.getElementById(canvasId);
   const box = canvas.parentElement;
-  const cssW = Math.max(280, Math.floor(box.clientWidth));
+  const cssW = Math.max(120, Math.floor(box.clientWidth));
   const cssH = 300;
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(cssW * dpr);
@@ -185,7 +210,7 @@ function ensureLayout(canvasId, force) {
   canvas.style.height = cssH + 'px';
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const M = { l: 44, r: 58, t: 18, b: 36 };
+  const M = margins || { l: 44, r: 14, t: 18, b: 36 };
   layouts[canvasId] = {
     canvas, ctx, cssW, cssH, M,
     plotW: cssW - M.l - M.r,
@@ -194,26 +219,31 @@ function ensureLayout(canvasId, force) {
   return layouts[canvasId];
 }
 
+function scrubToTime(game, t) {
+  scrub.old = nearest(game.deployed.points, t);
+  scrub.neu = nearest(game.proposal.points, t);
+  drawPanel('oldCanvas', game, game.deployed, '#c45c26', 'old', false);
+  drawPanel('newCanvas', game, game.proposal, '#1f4b99', 'neu', false);
+  drawField(game, false);
+  updateHud(game);
+}
+
 function drawPanel(canvasId, game, series, color, key, forceLayout) {
-  const L = ensureLayout(canvasId, forceLayout);
+  const L = ensureLayout(canvasId, forceLayout, { l: 44, r: 14, t: 18, b: 36 });
   const { ctx, cssW, cssH, M, plotW, plotH } = L;
   const tMax = Math.max(game.tMax, 1);
   const pts = series.points;
   const xOf = t => M.l + (t / tMax) * plotW;
   const yOf = p => M.t + (1 - p) * plotH;
-  // Field Y: 0 at bottom, 100 = goal line, up to 120 end zone
-  const fieldYOf = y => M.t + plotH - (Math.max(0, Math.min(120, y)) / 120) * plotH;
 
   ctx.clearRect(0, 0, cssW, cssH);
 
-  // main axes
   ctx.strokeStyle = '#cfd7e2';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(M.l, M.t); ctx.lineTo(M.l, M.t + plotH); ctx.lineTo(M.l + plotW, M.t + plotH);
   ctx.stroke();
 
-  // 50% + quarters
   ctx.setLineDash([4,4]);
   ctx.strokeStyle = '#b7c2d0';
   const mid = yOf(0.5);
@@ -232,7 +262,6 @@ function drawPanel(canvasId, game, series, color, key, forceLayout) {
   ctx.fillText('0%', M.l - 6, M.t + plotH);
   ctx.textAlign = 'left';
 
-  // WP fill + line
   ctx.beginPath();
   ctx.moveTo(xOf(pts[0].t), mid);
   pts.forEach(p => ctx.lineTo(xOf(p.t), yOf(p.wp)));
@@ -244,57 +273,110 @@ function drawPanel(canvasId, game, series, color, key, forceLayout) {
   pts.forEach((p,i) => { const x=xOf(p.t), y=yOf(p.wp); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
   ctx.strokeStyle = color; ctx.lineWidth = 2.1; ctx.lineJoin = 'round'; ctx.stroke();
 
-  // Field position ruler (right side)
-  const rx = M.l + plotW + 18;
-  ctx.strokeStyle = '#8aa88f';
-  ctx.beginPath();
-  ctx.moveTo(rx, M.t);
-  ctx.lineTo(rx, M.t + plotH);
-  ctx.stroke();
-  ctx.fillStyle = '#5f7a66';
-  ctx.font = '10px Segoe UI, sans-serif';
-  ctx.textAlign = 'left';
-  [[120, '120'], [100, '100'], [75, '75'], [50, '50'], [25, '25'], [0, '0']].forEach(([yy, lab]) => {
-    const y = fieldYOf(yy);
-    ctx.beginPath();
-    ctx.moveTo(rx - 4, y);
-    ctx.lineTo(rx + 4, y);
-    ctx.stroke();
-    ctx.fillText(lab, rx + 7, y + 3);
-  });
-  ctx.fillText('EZ', rx + 7, M.t + 10);
-  ctx.fillText('back', rx + 7, M.t + plotH);
-
   const cur = pts[scrub[key]];
   const sx = xOf(cur.t), sy = yOf(cur.wp);
   ctx.strokeStyle = '#8a97a8'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(sx, M.t); ctx.lineTo(sx, M.t + plotH); ctx.stroke();
   ctx.fillStyle = color; ctx.beginPath(); ctx.arc(sx, sy, 4, 0, Math.PI*2); ctx.fill();
 
-  if (cur.disc_y != null) {
-    const fy = fieldYOf(cur.disc_y);
-    ctx.fillStyle = '#2f6b3a';
-    ctx.beginPath();
-    ctx.arc(rx, fy, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(rx, fy, 2, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
   L.canvas.onpointermove = (e) => {
     const rect = L.canvas.getBoundingClientRect();
     let x = Math.min(M.l + plotW, Math.max(M.l, e.clientX - rect.left));
     const t = ((x - M.l) / plotW) * tMax;
-    scrub[key] = nearest(pts, t);
-    const otherKey = key === 'old' ? 'neu' : 'old';
-    const otherPts = key === 'old' ? game.proposal.points : game.deployed.points;
-    scrub[otherKey] = nearest(otherPts, t);
-    drawPanel('oldCanvas', game, game.deployed, '#c45c26', 'old', false);
-    drawPanel('newCanvas', game, game.proposal, '#1f4b99', 'neu', false);
-    updateHud(game);
+    scrubToTime(game, t);
   };
+}
+
+function drawField(game, forceLayout) {
+  const L = ensureLayout('fieldCanvas', forceLayout, { l: 42, r: 18, t: 22, b: 28 });
+  const { ctx, cssW, cssH, M, plotH } = L;
+  const p = currentFieldPoint(game);
+  const fieldYOf = y => M.t + plotH - (Math.max(0, Math.min(120, y)) / 120) * plotH;
+  const cx = M.l + 28;
+
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  // End-zone bands (neutral slate, not green)
+  const y120 = fieldYOf(120), y100 = fieldYOf(100), y0 = fieldYOf(0), y20 = fieldYOf(20);
+  ctx.fillStyle = 'rgba(61,79,99,0.10)';
+  ctx.fillRect(cx - 18, y120, 36, y100 - y120);
+  ctx.fillRect(cx - 18, y20, 36, y0 - y20);
+
+  // Number line
+  ctx.strokeStyle = '#3d4f63';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(cx, M.t);
+  ctx.lineTo(cx, M.t + plotH);
+  ctx.stroke();
+
+  ctx.fillStyle = '#5b6b7c';
+  ctx.font = '10px Segoe UI, sans-serif';
+  ctx.textAlign = 'right';
+  [[120, '120 EZ'], [100, '100'], [75, '75'], [50, '50'], [25, '25'], [0, '0']].forEach(([yy, lab]) => {
+    const y = fieldYOf(yy);
+    ctx.strokeStyle = '#3d4f63';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(cx - 10, y);
+    ctx.lineTo(cx + 10, y);
+    ctx.stroke();
+    ctx.fillText(lab, cx - 14, y + 3);
+  });
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#8a97a8';
+  ctx.fillText('goal', cx + 14, y100 + 3);
+  ctx.fillText('back', cx + 14, y0);
+
+  const start = p.start_y;
+  const end = p.end_y;
+  if (start != null && end != null) {
+    const ys = fieldYOf(start);
+    const ye = fieldYOf(end);
+    // Throw path
+    ctx.strokeStyle = '#142033';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(cx, ys);
+    ctx.lineTo(cx, ye);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Start (thrower)
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#142033';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, ys, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // End (disc / catch)
+    ctx.fillStyle = '#3d4f63';
+    ctx.beginPath();
+    ctx.arc(cx, ye, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(cx, ye, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Distance callout
+    if (p.throw_dist != null) {
+      const midY = (ys + ye) / 2;
+      ctx.fillStyle = '#142033';
+      ctx.font = 'bold 11px Segoe UI, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(p.throw_dist + ' yd', cx + 16, midY + 4);
+    }
+  } else if (end != null) {
+    const ye = fieldYOf(end);
+    ctx.fillStyle = '#3d4f63';
+    ctx.beginPath();
+    ctx.arc(cx, ye, 7, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 boot();

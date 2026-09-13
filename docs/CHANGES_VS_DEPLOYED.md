@@ -17,7 +17,7 @@ Win probability is the live “who is more likely to win?” line you see during
 2. Orange = today’s Game Center math. Blue = the smoother proposal.
 3. Move your mouse across either chart to scrub through throws (score, play text, and win % update together).
 4. Use **Prev / Next game** (or the arrow keys) to flip matchups.
-5. The green ruler on the right shows **where the disc is on the field** after each pass (low = near your end zone, high = near the opponent’s goal / end zone).
+5. The **middle panel** is a field number line: hollow circle = where the throw started, filled circle = where it was caught, with throw distance labeled.
 
 This site is a **demo and comparison tool**. It does **not** change what runs in production until someone chooses to promote the new model.
 
@@ -48,8 +48,8 @@ Open `site/compare.html`:
 - **Left (orange):** deployed Game Center path (production FV → CombinedWinModel)
 - **Right (blue):** proposal smooth live path
 - **Next game →** cycles through exported games (keyboard ← → works too)
-- Scrub either panel; throw text, score, win %, and disc field position update together by time
-- **Right-side ruler:** vertical disc position after each pass (`ReceiverY`)
+- Scrub either win panel; throw text, score, win %, and the middle field number line update together by time
+- **Middle panel:** thrower start Y → receiver catch Y (throw distance)
 
 ## Why this is safer for live use
 
