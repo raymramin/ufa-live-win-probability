@@ -13,12 +13,31 @@
     th { background: #eef3fa; }
     a { color: #1f4b99; }
     .meta { color: #5b6b7c; font-family: "Segoe UI", sans-serif; font-size: 0.9rem; }
+    .plain { font-family: "Segoe UI", sans-serif; background: #f7f9fc; border: 1px solid #d7dee7; border-radius: 12px; padding: 16px 18px; margin: 18px 0; }
+    .plain ol { margin: 8px 0 0; padding-left: 1.2em; }
+    .plain li { margin: 4px 0; }
   </style>
 </head>
 <body>
-  <p class="meta"><a href="../site/compare.html">← Side-by-side compare</a></p>
+  <p class="meta"><a href="../index.html">Home</a> · <a href="../site/compare.html">Side-by-side compare</a></p>
   <h1>Changes vs deployed (1 page)</h1>
   <p class="meta">Live: <a href="../site/compare.html">compare.html</a> · Repo: <a href="https://github.com/raymramin/ufa-live-win-probability">ufa-live-win-probability</a></p>
+
+  <div class="plain">
+    <strong>In plain English</strong>
+    <p style="margin:8px 0 0;">Win probability is the live “who is more likely to win?” line during a game.</p>
+    <p><strong>Orange (today):</strong> every throw can jolt the line — even a routine completion. That makes the chart jumpy and harder to follow on a broadcast or phone.</p>
+    <p><strong>Blue (proposal):</strong> the line still reacts when something big happens (a goal, a turnover, a big score change). Quiet throws barely move it. Same game story — smoother picture.</p>
+    <p style="margin-bottom:0;"><strong>How to use the demo</strong></p>
+    <ol>
+      <li>Open the <a href="../site/compare.html">side-by-side chart</a>.</li>
+      <li>Orange = today’s Game Center math. Blue = the smoother proposal.</li>
+      <li>Move your mouse across either chart to scrub through throws (score, play text, and win % update together).</li>
+      <li>Use <strong>Prev / Next game</strong> (or the arrow keys) to flip matchups.</li>
+      <li>The green ruler on the right shows <strong>where the disc is on the field</strong> after each pass (low = near your end zone, high = near the opponent’s goal / end zone).</li>
+    </ol>
+    <p style="margin:12px 0 0;">This site is a <strong>demo and comparison tool</strong>. It does <strong>not</strong> change what runs in production until someone chooses to promote the new model.</p>
+  </div>
 
   <h2>Deployed today (Game Center)</h2>
   <table>
@@ -43,6 +62,7 @@
     <li><strong>Left (orange):</strong> deployed Game Center path</li>
     <li><strong>Right (blue):</strong> proposal smooth live path</li>
     <li><strong>Next game →</strong> cycles matchups (also keyboard ← →)</li>
+    <li><strong>Green ruler:</strong> disc field position after each pass</li>
   </ul>
 
   <h2>Security</h2>

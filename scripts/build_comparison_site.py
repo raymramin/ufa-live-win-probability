@@ -45,6 +45,12 @@ def _pick_games(throws: pd.DataFrame, games: pd.DataFrame, n: int, prefer: list[
 def _series_points(frame: pd.DataFrame, wp_col: str) -> list[dict]:
     rows = []
     for _, r in frame.iterrows():
+        disc_y = pd.to_numeric(r.get("ReceiverY"), errors="coerce")
+        if pd.isna(disc_y):
+            disc_y = pd.to_numeric(r.get("ThrowerY"), errors="coerce")
+        disc_y = float(disc_y) if pd.notna(disc_y) else None
+        if disc_y is not None:
+            disc_y = round(float(np.clip(disc_y, 0.0, 120.0)), 1)
         rows.append(
             {
                 "t": round(float(r["elapsed_seconds"]), 2),
@@ -53,6 +59,7 @@ def _series_points(frame: pd.DataFrame, wp_col: str) -> list[dict]:
                 "play": _play_description(r),
                 "home_score": int(pd.to_numeric(r.get("home_team_score"), errors="coerce") or 0),
                 "away_score": int(pd.to_numeric(r.get("away_team_score"), errors="coerce") or 0),
+                "disc_y": disc_y,
             }
         )
     return rows
@@ -74,6 +81,7 @@ def main() -> None:
     parser.add_argument("--n-games", type=int, default=8)
     parser.add_argument("--team", choices=["home", "away"], default="home")
     parser.add_argument("--prefer", action="append", default=["2023-05-13-SLC-OAK"])
+    parser.add_argument("--skip-train", action="store_true", help="Reuse models/smooth_win_model.joblib if present")
     args = parser.parse_args()
 
     print("Loading DB tables...")
@@ -94,16 +102,20 @@ def main() -> None:
     for gid in game_ids:
         if gid not in train_ids:
             train_ids.append(gid)
-    train_throws = throws[throws["GameID"].astype(str).isin(train_ids)].copy()
-    feats_all = build_feature_frame(train_throws, player_priors=priors, games=g)
     model_path = ROOT / "models" / "smooth_win_model.joblib"
     model_path.parent.mkdir(parents=True, exist_ok=True)
-    proposal = train_smooth_win_model(
-        feats_all.dropna(subset=["home_won"]),
-        output_path=model_path,
-        gam_lam=8.0,
-    )
-    print(f"Proposal model -> {model_path}")
+    if args.skip_train and model_path.is_file():
+        proposal = SmoothWinModel.load(model_path)
+        print(f"Loaded proposal model from {model_path}")
+    else:
+        train_throws = throws[throws["GameID"].astype(str).isin(train_ids)].copy()
+        feats_all = build_feature_frame(train_throws, player_priors=priors, games=g)
+        proposal = train_smooth_win_model(
+            feats_all.dropna(subset=["home_won"]),
+            output_path=model_path,
+            gam_lam=8.0,
+        )
+        print(f"Proposal model -> {model_path}")
 
     # Deployed artifacts
     try:
@@ -212,7 +224,7 @@ def _compare_html(data_url: str = "data/games.json") -> str:
   <title>Deployed vs Proposal — UFA Win Probability</title>
   <style>
     :root {{ --ink:#142033; --muted:#5b6b7c; --line:#d7dee7; --accent:#1f4b99;
-             --old:#c45c26; --new:#1f4b99; --bg:#f7f9fc; --card:#fff; }}
+             --old:#c45c26; --new:#1f4b99; --bg:#f7f9fc; --card:#fff; --field:#2f6b3a; }}
     * {{ box-sizing: border-box; }}
     body {{ margin:0; font-family:"Segoe UI",system-ui,sans-serif; background:var(--bg); color:var(--ink); }}
     .wrap {{ max-width: 1100px; margin: 20px auto; padding: 0 16px 40px; }}
@@ -223,7 +235,6 @@ def _compare_html(data_url: str = "data/games.json") -> str:
       padding:10px 16px; font-weight:700; cursor:pointer;
     }}
     button.secondary {{ background:#e8eef8; color:var(--ink); }}
-    button:disabled {{ opacity:.45; cursor:default; }}
     .meta {{ color:var(--muted); font-size:.92rem; }}
     .pills {{ display:flex; flex-wrap:wrap; gap:8px; margin: 8px 0 14px; }}
     .pill {{ background:#eef3fa; border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-weight:600; }}
@@ -234,27 +245,27 @@ def _compare_html(data_url: str = "data/games.json") -> str:
              box-shadow:0 8px 24px rgba(20,32,51,.05); }}
     .card h2 {{ font-size:1rem; margin:0 0 4px; }}
     .vol {{ color:var(--muted); font-size:.8rem; margin-bottom:8px; }}
-    canvas {{ width:100%; height:auto; display:block; cursor:crosshair; touch-action:none; }}
+    .chart-box {{ width:100%; height:300px; }}
+    canvas {{ width:100%; height:300px; display:block; cursor:crosshair; touch-action:none; }}
     .hud {{ display:grid; grid-template-columns:1fr auto; gap:8px; border-top:1px solid var(--line);
-            margin-top:8px; padding-top:10px; }}
+            margin-top:8px; padding-top:10px; min-height:88px; }}
     .score {{ font-weight:700; margin:0 0 4px; }}
     .play {{ color:var(--muted); font-size:.9rem; margin:0; min-height:2.4em; }}
     .wp {{ font-size:1.8rem; font-weight:800; text-align:right; line-height:1; }}
     .wp-label {{ color:var(--muted); font-size:.75rem; text-align:right; }}
-    .legend {{ display:flex; gap:16px; color:var(--muted); font-size:.85rem; margin-top:10px; }}
+    .disc {{ color:var(--field); font-size:.8rem; text-align:right; margin-top:4px; font-weight:600; }}
+    .legend {{ display:flex; flex-wrap:wrap; gap:16px; color:var(--muted); font-size:.85rem; margin-top:10px; }}
     .swatch {{ display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:6px; vertical-align:middle; }}
-    a {{ color:var(--accent); }}
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Deployed vs proposal win probability</h1>
-    <div class="meta">Side-by-side on the same game timeline. Drag either chart to scrub throws.</div>
+    <div class="meta">Side-by-side on the same game timeline. Move across a chart to scrub throws.</div>
     <div class="nav">
-      <button class="secondary" id="prevBtn" type="button">← Prev game</button>
-      <button id="nextBtn" type="button">Next game →</button>
+      <button class="secondary" id="prevBtn" type="button">Prev game</button>
+      <button id="nextBtn" type="button">Next game</button>
       <span class="meta" id="gameCounter"></span>
-      <a class="meta" href="../docs/CHANGES_VS_DEPLOYED.html">1-page summary</a>
     </div>
     <div class="pills">
       <div class="pill"><span>Away</span><span id="awayCode">—</span></div>
@@ -266,7 +277,7 @@ def _compare_html(data_url: str = "data/games.json") -> str:
       <div class="card">
         <h2 style="color:var(--old)">Deployed (Game Center path)</h2>
         <div class="vol" id="oldVol"></div>
-        <canvas id="oldCanvas" width="520" height="300"></canvas>
+        <div class="chart-box"><canvas id="oldCanvas" width="520" height="300"></canvas></div>
         <div class="hud">
           <div>
             <p class="score" id="oldScore">—</p>
@@ -275,13 +286,14 @@ def _compare_html(data_url: str = "data/games.json") -> str:
           <div>
             <div class="wp" id="oldWp" style="color:var(--old)">—</div>
             <div class="wp-label" id="oldWpLabel">win %</div>
+            <div class="disc" id="oldDisc">Disc Y —</div>
           </div>
         </div>
       </div>
       <div class="card">
         <h2 style="color:var(--new)">Proposal (smooth live)</h2>
         <div class="vol" id="newVol"></div>
-        <canvas id="newCanvas" width="520" height="300"></canvas>
+        <div class="chart-box"><canvas id="newCanvas" width="520" height="300"></canvas></div>
         <div class="hud">
           <div>
             <p class="score" id="newScore">—</p>
@@ -290,6 +302,7 @@ def _compare_html(data_url: str = "data/games.json") -> str:
           <div>
             <div class="wp" id="newWp" style="color:var(--new)">—</div>
             <div class="wp-label" id="newWpLabel">win %</div>
+            <div class="disc" id="newDisc">Disc Y —</div>
           </div>
         </div>
       </div>
@@ -297,7 +310,7 @@ def _compare_html(data_url: str = "data/games.json") -> str:
     <div class="legend">
       <span><i class="swatch" style="background:var(--old)"></i>Deployed</span>
       <span><i class="swatch" style="background:var(--new)"></i>Proposal</span>
-      <span>Dashed lines = 50% and Q1–OT</span>
+      <span><i class="swatch" style="background:var(--field)"></i>Right ruler = disc Y after each pass (0 back → 100 goal → 120 EZ)</span>
     </div>
   </div>
 <script>
@@ -305,25 +318,27 @@ const DATA_URL = {json.dumps(data_url)};
 let GAMES = [];
 let idx = 0;
 let scrub = {{ old: 0, neu: 0 }};
+const layouts = {{}};
 
 async function boot() {{
   const res = await fetch(DATA_URL);
   const payload = await res.json();
   GAMES = payload.games || [];
   if (!GAMES.length) {{
-    document.body.insertAdjacentHTML('afterbegin', '<p style="padding:20px">No games in data/games.json — run scripts/build_comparison_site.py</p>');
+    document.body.insertAdjacentHTML('afterbegin', '<p style="padding:20px">No games in data/games.json</p>');
     return;
   }}
-  document.getElementById('prevBtn').onclick = () => {{ idx = (idx - 1 + GAMES.length) % GAMES.length; render(); }};
-  document.getElementById('nextBtn').onclick = () => {{ idx = (idx + 1) % GAMES.length; render(); }};
+  document.getElementById('prevBtn').onclick = () => {{ idx = (idx - 1 + GAMES.length) % GAMES.length; render(true); }};
+  document.getElementById('nextBtn').onclick = () => {{ idx = (idx + 1) % GAMES.length; render(true); }};
   window.addEventListener('keydown', (e) => {{
     if (e.key === 'ArrowRight') document.getElementById('nextBtn').click();
     if (e.key === 'ArrowLeft') document.getElementById('prevBtn').click();
   }});
-  render();
+  window.addEventListener('resize', () => {{ if (GAMES.length) render(true); }});
+  render(true);
 }}
 
-function render() {{
+function render(forceLayout) {{
   const g = GAMES[idx];
   document.getElementById('gameCounter').textContent = (idx + 1) + ' / ' + GAMES.length + ' · ' + g.gameId;
   document.getElementById('awayCode').textContent = g.away;
@@ -332,17 +347,23 @@ function render() {{
   document.getElementById('finalPill').textContent =
     'Final ' + g.away + ' ' + (g.finalAwayScore ?? '—') + ' – ' + g.home + ' ' + (g.finalHomeScore ?? '—');
   document.getElementById('oldVol').textContent =
-    'mean |Δ|=' + (g.deployed.volatility.mean_abs_step ?? '—') +
+    'mean |step|=' + (g.deployed.volatility.mean_abs_step ?? '—') +
     ' · jumps>5pp=' + g.deployed.volatility.jumps_gt_5pp;
   document.getElementById('newVol').textContent =
-    'mean |Δ|=' + (g.proposal.volatility.mean_abs_step ?? '—') +
+    'mean |step|=' + (g.proposal.volatility.mean_abs_step ?? '—') +
     ' · jumps>5pp=' + g.proposal.volatility.jumps_gt_5pp;
   document.getElementById('oldWpLabel').textContent = g.focusTeam + ' win % (deployed)';
   document.getElementById('newWpLabel').textContent = g.focusTeam + ' win % (proposal)';
-  scrub.old = Math.floor(g.deployed.points.length * 0.55);
-  scrub.neu = Math.floor(g.proposal.points.length * 0.55);
-  drawPanel('oldCanvas', g, g.deployed, '#c45c26', 'old');
-  drawPanel('newCanvas', g, g.proposal, '#1f4b99', 'neu');
+  scrub.old = Math.min(scrub.old, g.deployed.points.length - 1);
+  scrub.neu = Math.min(scrub.neu, g.proposal.points.length - 1);
+  if (forceLayout) {{
+    scrub.old = Math.floor(g.deployed.points.length * 0.55);
+    scrub.neu = Math.floor(g.proposal.points.length * 0.55);
+    delete layouts.oldCanvas;
+    delete layouts.newCanvas;
+  }}
+  drawPanel('oldCanvas', g, g.deployed, '#c45c26', 'old', !!forceLayout);
+  drawPanel('newCanvas', g, g.proposal, '#1f4b99', 'neu', !!forceLayout);
   updateHud(g);
 }}
 
@@ -355,6 +376,8 @@ function updateHud(g) {{
   document.getElementById('newPlay').textContent = (n.clock ? n.clock + ' · ' : '') + n.play;
   document.getElementById('oldWp').textContent = (o.wp * 100).toFixed(1) + '%';
   document.getElementById('newWp').textContent = (n.wp * 100).toFixed(1) + '%';
+  document.getElementById('oldDisc').textContent = o.disc_y == null ? 'Disc Y —' : ('Disc Y ' + o.disc_y);
+  document.getElementById('newDisc').textContent = n.disc_y == null ? 'Disc Y —' : ('Disc Y ' + n.disc_y);
 }}
 
 function nearest(points, t) {{
@@ -367,30 +390,48 @@ function nearest(points, t) {{
   return lo;
 }}
 
-function drawPanel(canvasId, game, series, color, key) {{
+function ensureLayout(canvasId, force) {{
+  if (layouts[canvasId] && !force) return layouts[canvasId];
   const canvas = document.getElementById(canvasId);
-  const ctx = canvas.getContext('2d');
-  const cssW = canvas.parentElement.clientWidth - 8;
-  const cssH = 280;
+  const box = canvas.parentElement;
+  const cssW = Math.max(280, Math.floor(box.clientWidth));
+  const cssH = 300;
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
   canvas.style.width = cssW + 'px';
   canvas.style.height = cssH + 'px';
+  const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const M = {{ l: 44, r: 12, t: 16, b: 36 }};
-  const plotW = cssW - M.l - M.r, plotH = cssH - M.t - M.b;
+  const M = {{ l: 44, r: 58, t: 18, b: 36 }};
+  layouts[canvasId] = {{
+    canvas, ctx, cssW, cssH, M,
+    plotW: cssW - M.l - M.r,
+    plotH: cssH - M.t - M.b,
+  }};
+  return layouts[canvasId];
+}}
+
+function drawPanel(canvasId, game, series, color, key, forceLayout) {{
+  const L = ensureLayout(canvasId, forceLayout);
+  const {{ ctx, cssW, cssH, M, plotW, plotH }} = L;
   const tMax = Math.max(game.tMax, 1);
   const pts = series.points;
   const xOf = t => M.l + (t / tMax) * plotW;
   const yOf = p => M.t + (1 - p) * plotH;
+  // Field Y: 0 at bottom, 100 = goal line, up to 120 end zone
+  const fieldYOf = y => M.t + plotH - (Math.max(0, Math.min(120, y)) / 120) * plotH;
 
   ctx.clearRect(0, 0, cssW, cssH);
+
+  // main axes
   ctx.strokeStyle = '#cfd7e2';
+  ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(M.l, M.t); ctx.lineTo(M.l, M.t + plotH); ctx.lineTo(M.l + plotW, M.t + plotH);
   ctx.stroke();
 
+  // 50% + quarters
   ctx.setLineDash([4,4]);
   ctx.strokeStyle = '#b7c2d0';
   const mid = yOf(0.5);
@@ -409,6 +450,7 @@ function drawPanel(canvasId, game, series, color, key) {{
   ctx.fillText('0%', M.l - 6, M.t + plotH);
   ctx.textAlign = 'left';
 
+  // WP fill + line
   ctx.beginPath();
   ctx.moveTo(xOf(pts[0].t), mid);
   pts.forEach(p => ctx.lineTo(xOf(p.t), yOf(p.wp)));
@@ -416,10 +458,30 @@ function drawPanel(canvasId, game, series, color, key) {{
   ctx.closePath();
   ctx.fillStyle = color === '#c45c26' ? 'rgba(196,92,38,0.12)' : 'rgba(31,75,153,0.12)';
   ctx.fill();
-
   ctx.beginPath();
   pts.forEach((p,i) => {{ const x=xOf(p.t), y=yOf(p.wp); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }});
   ctx.strokeStyle = color; ctx.lineWidth = 2.1; ctx.lineJoin = 'round'; ctx.stroke();
+
+  // Field position ruler (right side)
+  const rx = M.l + plotW + 18;
+  ctx.strokeStyle = '#8aa88f';
+  ctx.beginPath();
+  ctx.moveTo(rx, M.t);
+  ctx.lineTo(rx, M.t + plotH);
+  ctx.stroke();
+  ctx.fillStyle = '#5f7a66';
+  ctx.font = '10px Segoe UI, sans-serif';
+  ctx.textAlign = 'left';
+  [[120, '120'], [100, '100'], [75, '75'], [50, '50'], [25, '25'], [0, '0']].forEach(([yy, lab]) => {{
+    const y = fieldYOf(yy);
+    ctx.beginPath();
+    ctx.moveTo(rx - 4, y);
+    ctx.lineTo(rx + 4, y);
+    ctx.stroke();
+    ctx.fillText(lab, rx + 7, y + 3);
+  }});
+  ctx.fillText('EZ', rx + 7, M.t + 10);
+  ctx.fillText('back', rx + 7, M.t + plotH);
 
   const cur = pts[scrub[key]];
   const sx = xOf(cur.t), sy = yOf(cur.wp);
@@ -427,22 +489,32 @@ function drawPanel(canvasId, game, series, color, key) {{
   ctx.beginPath(); ctx.moveTo(sx, M.t); ctx.lineTo(sx, M.t + plotH); ctx.stroke();
   ctx.fillStyle = color; ctx.beginPath(); ctx.arc(sx, sy, 4, 0, Math.PI*2); ctx.fill();
 
-  canvas.onpointermove = (e) => {{
-    const rect = canvas.getBoundingClientRect();
+  if (cur.disc_y != null) {{
+    const fy = fieldYOf(cur.disc_y);
+    ctx.fillStyle = '#2f6b3a';
+    ctx.beginPath();
+    ctx.arc(rx, fy, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(rx, fy, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }}
+
+  L.canvas.onpointermove = (e) => {{
+    const rect = L.canvas.getBoundingClientRect();
     let x = Math.min(M.l + plotW, Math.max(M.l, e.clientX - rect.left));
     const t = ((x - M.l) / plotW) * tMax;
     scrub[key] = nearest(pts, t);
-    // sync other panel by time
     const otherKey = key === 'old' ? 'neu' : 'old';
     const otherPts = key === 'old' ? game.proposal.points : game.deployed.points;
     scrub[otherKey] = nearest(otherPts, t);
-    drawPanel('oldCanvas', game, game.deployed, '#c45c26', 'old');
-    drawPanel('newCanvas', game, game.proposal, '#1f4b99', 'neu');
+    drawPanel('oldCanvas', game, game.deployed, '#c45c26', 'old', false);
+    drawPanel('newCanvas', game, game.proposal, '#1f4b99', 'neu', false);
     updateHud(game);
   }};
 }}
 
-window.addEventListener('resize', () => {{ if (GAMES.length) render(); }});
 boot();
 </script>
 </body>

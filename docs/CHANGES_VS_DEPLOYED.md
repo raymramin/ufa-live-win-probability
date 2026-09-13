@@ -3,6 +3,24 @@
 **Repo:** [ufa-live-win-probability](https://github.com/raymramin/ufa-live-win-probability)  
 **Live compare:** [Side-by-side chart](https://raymramin.github.io/ufa-live-win-probability/site/compare.html)
 
+## In plain English
+
+Win probability is the live “who is more likely to win?” line you see during a game.
+
+**What fans see today (orange):** every throw can jolt the line — even a routine completion. That makes the chart jumpy and harder to follow on a broadcast or phone.
+
+**What we are proposing (blue):** the line still reacts when something big happens (a goal, a turnover, a big score change). Quiet throws barely move it. Same game story — smoother picture.
+
+**How to use the demo page**
+
+1. Open the [side-by-side chart](https://raymramin.github.io/ufa-live-win-probability/site/compare.html).
+2. Orange = today’s Game Center math. Blue = the smoother proposal.
+3. Move your mouse across either chart to scrub through throws (score, play text, and win % update together).
+4. Use **Prev / Next game** (or the arrow keys) to flip matchups.
+5. The green ruler on the right shows **where the disc is on the field** after each pass (low = near your end zone, high = near the opponent’s goal / end zone).
+
+This site is a **demo and comparison tool**. It does **not** change what runs in production until someone chooses to promote the new model.
+
 ## What is deployed today (Game Center)
 
 | Piece | Behavior |
@@ -30,7 +48,8 @@ Open `site/compare.html`:
 - **Left (orange):** deployed Game Center path (production FV → CombinedWinModel)
 - **Right (blue):** proposal smooth live path
 - **Next game →** cycles through exported games (keyboard ← → works too)
-- Scrub either panel; throw text, score, and win % update together by time
+- Scrub either panel; throw text, score, win %, and disc field position update together by time
+- **Right-side ruler:** vertical disc position after each pass (`ReceiverY`)
 
 ## Why this is safer for live use
 
