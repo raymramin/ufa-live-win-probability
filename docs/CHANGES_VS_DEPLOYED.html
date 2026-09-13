@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Changes vs deployed</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 720px; margin: 40px auto; padding: 0 16px 48px; color: #142033; line-height: 1.45; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.15rem; margin-top: 1.4em; }
+    table { border-collapse: collapse; width: 100%; font-family: "Segoe UI", sans-serif; font-size: 0.9rem; }
+    th, td { border: 1px solid #d7dee7; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #eef3fa; }
+    a { color: #1f4b99; }
+    .meta { color: #5b6b7c; font-family: "Segoe UI", sans-serif; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <p class="meta"><a href="../site/compare.html">← Side-by-side compare</a></p>
+  <h1>Changes vs deployed (1 page)</h1>
+  <p class="meta">Live: <a href="../site/compare.html">compare.html</a> · Repo: <a href="https://github.com/raymramin/ufa-live-win-probability">ufa-live-win-probability</a></p>
+
+  <h2>Deployed today (Game Center)</h2>
+  <table>
+    <tr><th>Piece</th><th>Behavior</th></tr>
+    <tr><td>Artifact</td><td><code>win_model.joblib</code> (CombinedWinModel) + <code>fv_model.joblib</code></td></tr>
+    <tr><td>Features</td><td>score, clock, signed field_position from FV; late XGB on distance/possession</td></tr>
+    <tr><td>Update grain</td><td>Every throw — field/possession flips move WP immediately</td></tr>
+    <tr><td>Chart feel</td><td>Informative but bumpy (many jumps &gt;5pp)</td></tr>
+  </table>
+
+  <h2>Proposal (this repo)</h2>
+  <table>
+    <tr><th>Piece</th><th>Behavior</th></tr>
+    <tr><td>Artifact</td><td>Smooth GAM + event-gated EMA (<code>smooth_win_model.joblib</code>, trained locally)</td></tr>
+    <tr><td>Features</td><td>Score×elapsed backbone + weak yards / sideline / skill priors</td></tr>
+    <tr><td>Live layer</td><td>Large steps on goals/turnovers; tiny steps on completions</td></tr>
+    <tr><td>Chart feel</td><td>Streamlined for live UI; ends at 0% or 100%; multi-game Next/Prev</td></tr>
+  </table>
+
+  <h2>How to read the demo</h2>
+  <ul>
+    <li><strong>Left (orange):</strong> deployed Game Center path</li>
+    <li><strong>Right (blue):</strong> proposal smooth live path</li>
+    <li><strong>Next game →</strong> cycles matchups (also keyboard ← →)</li>
+  </ul>
+
+  <h2>Security</h2>
+  <p>GitHub Pages hosts static HTML + win-% JSON only. <code>.env</code>, credentials, and <code>.joblib</code> weights stay local (gitignored).</p>
+
+  <h2>Not promoted yet</h2>
+  <p>ShownSpace production still loads repo-root <code>models/</code> until explicit promotion. This repo is training, evaluation, and the shareable demo.</p>
+</body>
+</html>

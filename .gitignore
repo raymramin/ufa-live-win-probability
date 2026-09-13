@@ -1,17 +1,46 @@
+# Never commit secrets or local credentials
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+**/secrets/**
+
+# Python / tooling
 .venv/
+venv/
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
 .mypy_cache/
-data/*.parquet
-data/*.csv
+.ruff_cache/
+.ipynb_checkpoints/
+*.egg-info/
+dist/
+build/
+
+# Local data & trained weights (regenerate locally)
+data/**
 !data/.gitkeep
-models/*.joblib
+models/**
 !models/.gitkeep
-figures/*
-!figures/.gitkeep
-!figures/demo_synthetic_home.svg
-!figures/2023_05_13_SLC_OAK_home_live.svg
-!figures/2023_05_13_SLC_OAK_home_live.html
+*.joblib
+*.pkl
+*.parquet
+*.csv
+!docs/**/*.csv
+
+# OS / editor
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Keep published site assets
+!figures/.gitkeep
+!figures/*.html
+!figures/*.svg
+!site/data/*.json
+!site/**/*.html
