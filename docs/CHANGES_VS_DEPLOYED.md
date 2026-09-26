@@ -9,7 +9,7 @@ Win probability is the live “who is more likely to win?” line you see during
 
 **What fans see today (orange):** every throw can jolt the line — even a routine completion. That makes the chart jumpy and harder to follow on a broadcast or phone.
 
-**What we are proposing (blue):** the line still reacts when something big happens (a goal, a turnover, a big score change). Quiet throws barely move it. Same game story — smoother picture.
+**What we are proposing (blue):** a Bayesian-style belief update. A one-goal lead late counts more than the same lead early; big score gaps do not keep stacking forever; quiet throws barely move the line; turnovers hurt less than the jumpy deployed path when context still supports you. Same game story — smoother, context-matched picture.
 
 **How to use the demo page**
 
@@ -37,7 +37,7 @@ This site is a **demo and comparison tool**. It does **not** change what runs in
 |-------|----------|
 | Artifact | `models/smooth_win_model.joblib` (gitignored locally; retrain via scripts) |
 | Features | Score × elapsed backbone + **weak** yards / sideline / player-skill priors |
-| Live layer | **Event-gated EMA** — large steps on goals/turnovers; tiny steps on completions |
+| Live layer | **Context-aware EMA** — goals move more late; turnovers muted early / when leading; tiny steps on completions |
 | Chart feel | **Streamlined** for broadcast / live UI; ends at 0% or 100% |
 | Clock axis | Elapsed **0 → end** with Q1–OT markers; multi-game **Next / Prev** |
 

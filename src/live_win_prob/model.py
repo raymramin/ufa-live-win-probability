@@ -65,13 +65,14 @@ def train_smooth_win_model(
     x = frame[FEATURE_COLS].fillna(0.0).to_numpy(dtype=float)
     y = frame["home_won"].astype(int).to_numpy()
 
-    # te(score, time) + soft additive context terms
+    # te(score_edge, time) is the Bayesian backbone: a one-goal lead late
+    # is stronger evidence than the same lead early. Field/skill terms stay weak.
     gam = LogisticGAM(
-        te(0, 1, n_splines=[6, 8], lam=gam_lam)
-        + s(2, n_splines=4, lam=gam_lam * 1.5)  # possession
-        + s(3, n_splines=5, lam=gam_lam * 2.0)  # yards
-        + s(4, n_splines=4, lam=gam_lam * 2.5)  # sideline
-        + s(5, n_splines=4, lam=gam_lam * 2.5)  # skill
+        te(0, 1, n_splines=[8, 10], lam=gam_lam * 0.7)
+        + s(2, n_splines=4, lam=gam_lam * 1.8)  # possession
+        + s(3, n_splines=5, lam=gam_lam * 2.5)  # yards
+        + s(4, n_splines=4, lam=gam_lam * 3.0)  # sideline
+        + s(5, n_splines=4, lam=gam_lam * 3.0)  # skill
     )
     gam.fit(x, y)
     model = SmoothWinModel(gam)

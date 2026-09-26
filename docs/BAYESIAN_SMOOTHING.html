@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Bayesian smoothing — thought process</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 720px; margin: 40px auto; padding: 0 16px 48px; color: #142033; line-height: 1.45; }
+    h1 { font-size: 1.55rem; }
+    h2 { font-size: 1.12rem; margin-top: 1.35em; }
+    a { color: #1f4b99; }
+    .meta { color: #5b6b7c; font-family: "Segoe UI", sans-serif; font-size: 0.9rem; }
+    .callout { font-family: "Segoe UI", sans-serif; background: #f7f9fc; border: 1px solid #d7dee7; border-radius: 12px; padding: 16px 18px; margin: 16px 0; }
+    ol { font-family: "Segoe UI", sans-serif; color: #3a4656; }
+    ul { font-family: "Segoe UI", sans-serif; color: #3a4656; }
+  </style>
+</head>
+<body>
+  <p class="meta"><a href="../index.html">Home</a> · <a href="../site/compare.html">Side-by-side compare</a> · <a href="CHANGES_VS_DEPLOYED.html">Changes vs deployed</a></p>
+  <h1>Bayesian live win probability — thought process</h1>
+  <p class="meta">1-page report · Live: <a href="../site/compare.html">compare.html</a></p>
+
+  <h2>Thought process (plain English)</h2>
+  <p>Win probability should feel like a <strong>belief that updates as the game unfolds</strong>, not a seismograph that jumps on every throw.</p>
+  <p>Start near <strong>50–50</strong>. The scoreboard and the clock are the strongest evidence: a <strong>one-goal lead late</strong> should move belief more than the <strong>same lead early</strong>, because there is less time left to come back. Large goal gaps should <strong>not</strong> keep stacking forever — going from +3 to +4 is not as informative as going from tied to +1 — so score enters as a soft “edge,” not a raw goal counter.</p>
+  <p>Field events still matter, but they are <strong>weaker evidence</strong>. A completion or a short gain should barely nudge the line. A <strong>goal</strong> is strong evidence and may move more late. A <strong>turnover or other negative throw</strong> is real bad news, but it should <strong>not crash</strong> win % when context already says the team is fine (early game with time to recover, or holding a lead). Smoothness is not “make the line flat” — it is “move only as much as the context deserves.”</p>
+  <p>That is the Bayesian idea: <strong>prior belief from score × time</strong>, then <strong>gentle updates</strong> from play-by-play, with step sizes gated by how surprising and how decisive the event is.</p>
+
+  <h2>How smoothness was achieved</h2>
+  <ol>
+    <li><strong>Train a calm backbone</strong> — a heavily regularized model on soft score × game progress (plus weak possession / yards / skill terms), so the raw curve already prefers scoreboard story over noise.</li>
+    <li><strong>Event-gated live smoother</strong> — each throw’s raw prediction is capped before it is mixed in: tiny steps on quiet throws, larger on goals (especially late), softer on turnovers (especially early or while leading).</li>
+    <li><strong>Time-aware blend (EMA)</strong> — new evidence is blended with the previous live value using a half-life clock, so belief drifts instead of teleporting.</li>
+    <li><strong>End snap</strong> — the final point lands on 0% or 100% once the game is decided.</li>
+  </ol>
+
+  <div class="callout">
+    <strong>Smoothing paragraph (for the new graph)</strong>
+    <p style="margin:10px 0 0;">The blue proposal chart is smoothed by treating win probability as a running belief: each throw produces a raw model estimate, but that estimate is not drawn raw. Quiet throws are only allowed to move the live line a little; goals may move it more, and more so late in the game; turnovers and other negative throws are deliberately muted so they do not erase a lead or early-game optimism that the score and clock still support. Those capped updates are then blended with the previous live value using a short memory (exponential moving average), which is why the blue line looks continuous and context-aware instead of spiky like the deployed orange path.</p>
+  </div>
+
+  <h2>What to look for on the compare page</h2>
+  <ul>
+    <li><strong>Orange:</strong> deployed Game Center path — informative but jumpy.</li>
+    <li><strong>Blue:</strong> Bayesian smooth proposal — same games, calmer updates.</li>
+    <li><strong>Middle:</strong> field number line for the current throw (start → catch).</li>
+  </ul>
+</body>
+</html>

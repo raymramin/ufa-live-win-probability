@@ -68,7 +68,11 @@ def build_feature_frame(
 
     home = _num(frame, "home_team_score")
     away = _num(frame, "away_team_score")
-    frame["score_diff"] = home - away
+    # Raw goal difference for labels / live smoother context.
+    frame["score_diff_raw"] = home - away
+    # Soft score edge for the model: ±1 goal stays meaningful, blowouts saturate.
+    # Bayesian idea — the scoreboard is evidence, not a linear dial.
+    frame["score_diff"] = np.tanh(frame["score_diff_raw"] / 2.0)
 
     q = _num(frame, "game_quarter", 1)
     tl = _num(frame, "time_left", 720)

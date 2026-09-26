@@ -147,7 +147,7 @@ def main() -> None:
         # Proposal path
         feats = build_feature_frame(gt, player_priors=priors, games=g, team=args.team)
         scored_new = score_game_live(
-            feats, proposal, team=args.team, smoother=LiveWinSmoother(half_life_seconds=25.0)
+            feats, proposal, team=args.team, smoother=LiveWinSmoother(half_life_seconds=30.0)
         )
         scored_new = attach_player_display_names(scored_new, players)
 
